@@ -2,15 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
-import { Repository } from 'typeorm';
-import { User } from '../src/core/user/entities/user.entity';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
-describe('AppController (e2e)', () => {
+describe('App (e2e)', () => {
   let app: INestApplication;
-  let userRepository: Repository<User>;
-
-  jest.setTimeout(20000);
+  let apiKey: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -21,46 +17,29 @@ describe('AppController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe());
     await app.init();
 
-    userRepository = moduleFixture.get<Repository<User>>(
-      getRepositoryToken(User),
-    );
-  });
+    const configService = app.get(ConfigService);
+    const keyFromEnv = configService.get<string>('API_KEY');
 
-  beforeEach(async () => {
-    await userRepository.clear();
+        if (!keyFromEnv) {
+      throw new Error('STATIC_API_KEY não definida no ambiente de teste.');
+    }
+    apiKey = keyFromEnv;
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('should run the full authentication and protected route flow successfully', async () => {
-    await request(app.getHttpServer())
-      .post('/packing/calculate')
-      .send({ pedidos: [] })
-      .expect(401);
+  it('GET /health/live should return an alive status', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.data.status).toEqual('alive');
+      });
+  });
 
-    const userCredentials = {
-      username: 'e2e_user',
-      email: 'e2e@test.com',
-      password: 'Senha123@',
-    };
-    await request(app.getHttpServer())
-      .post('/user')
-      .send(userCredentials)
-      .expect(201);
-
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth')
-      .send({
-        email: userCredentials.email,
-        password: userCredentials.password,
-      })
-      .expect(200);
-
-    const accessToken = loginResponse.body.access_token;
-    expect(accessToken).toBeDefined();
-
+  describe('/packing/calculate (POST)', () => {
     const packingRequestPayload = {
       pedidos: [
         {
@@ -75,14 +54,36 @@ describe('AppController (e2e)', () => {
       ],
     };
 
-    return request(app.getHttpServer())
-      .post('/packing/calculate')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send(packingRequestPayload)
-      .expect(200)
-      .then((response) => {
-        expect(response.body).toHaveProperty('pedidos');
-        expect(response.body.pedidos[0].caixas[0].caixa_id).toBe('Caixa 1');
-      });
+    it('should return 401 Unauthorized if no API Key is provided', () => {
+      return request(app.getHttpServer())
+        .post('/packing/calculate')
+        .send(packingRequestPayload)
+        .expect(401);
+    });
+
+    it('should return 401 Unauthorized if an invalid API Key is provided', () => {
+      return request(app.getHttpServer())
+        .post('/packing/calculate')
+        .set('X-API-Key', 'chave-invalida-123')
+        .send(packingRequestPayload)
+        .expect(401);
+    });
+
+    it('should return 200 OK and calculate packaging if the correct API Key is provided', () => {
+      return request(app.getHttpServer())
+        .post('/packing/calculate')
+        .set('X-API-Key', apiKey)
+        .send(packingRequestPayload)
+        .expect(200)
+        .then((response) => {
+          expect(response.body).toHaveProperty('statusCode', 200);
+          expect(response.body).toHaveProperty('message');
+          expect(response.body).toHaveProperty('data');
+
+          const responseData = response.body.data;
+          expect(responseData).toHaveProperty('pedidos');
+          expect(responseData.pedidos[0].caixas[0].caixa_id).toBe('Caixa 1');
+        });
+    });
   });
 });
