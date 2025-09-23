@@ -20,8 +20,8 @@ describe('App (e2e)', () => {
     const configService = app.get(ConfigService);
     const keyFromEnv = configService.get<string>('API_KEY');
 
-        if (!keyFromEnv) {
-      throw new Error('STATIC_API_KEY não definida no ambiente de teste.');
+    if (!keyFromEnv) {
+      throw new Error('API_KEY não definida no ambiente de teste.');
     }
     apiKey = keyFromEnv;
   });

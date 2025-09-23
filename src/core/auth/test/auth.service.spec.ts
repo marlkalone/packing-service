@@ -10,7 +10,7 @@ describe('AuthService', () => {
   };
 
   describe('Service Initialization', () => {
-    it('should throw an error if STATIC_API_KEY is not defined', async () => {
+    it('should throw an error if API_KEY is not defined', async () => {
       mockConfigService.get.mockReturnValue(undefined);
 
       await expect(
@@ -24,11 +24,11 @@ describe('AuthService', () => {
           ],
         }).compile(),
       ).rejects.toThrow(
-        'A variável de ambiente STATIC_API_KEY não foi definida.',
+        'A variável de ambiente API_KEY não foi definida.',
       );
     });
 
-    it('should initialize successfully if STATIC_API_KEY is defined', async () => {
+    it('should initialize successfully if API_KEY is defined', async () => {
         mockConfigService.get.mockReturnValue(mockApiKey);
   
         await expect(
