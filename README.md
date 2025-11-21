@@ -1,6 +1,6 @@
 # Packing Service
 
-Este projeto foi criado como parte de um teste técnico e consiste em um microserviço de empacotamento de pedidos. Ele permite:
+Este projeto consiste em um microserviço de empacotamento de pedidos. Ele permite:
 - Receber um conjunto de pedidos
 - Calcular a forma mais adequada de empacotar os pedidos em caixas baseado em suas dimensões e volumes, utilizando a menor quantidade possível de caixas
 - Retornar os pedidos devidamente empacotados
